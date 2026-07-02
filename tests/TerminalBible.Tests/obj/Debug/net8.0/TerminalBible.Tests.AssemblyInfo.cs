@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("TerminalBible.Tests")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+e46ab755ea6f296e97a4b88694826d7ae1994aa5")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+ecd4e2c8919031142e0eccac61df3b954151afd6")]
 [assembly: System.Reflection.AssemblyProductAttribute("TerminalBible.Tests")]
 [assembly: System.Reflection.AssemblyTitleAttribute("TerminalBible.Tests")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

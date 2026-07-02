@@ -35,7 +35,7 @@ public sealed class ReadingPaginatorTests
     }
 
     [Fact]
-    public void CreatePages_DoesNotLoseOrDuplicatePhrases()
+    public void CreatePages_DoesNotLoseOrDuplicateWords()
     {
         var chapter = CreateChapter();
         var pages = ReadingPaginator.CreatePages(chapter, new ReadingLayoutOptions(18, 2));
@@ -46,7 +46,7 @@ public sealed class ReadingPaginatorTests
             .ToArray();
 
         Assert.Equal(
-            ["1", "No principio Deus", "criou os ceus.", "2", "A terra era sem", "forma e vazia."],
+            ["1", "No", "principio", "Deus", "criou", "os", "ceus.", "2", "A", "terra", "era", "sem", "forma", "e", "vazia."],
             actual);
     }
 
@@ -68,11 +68,11 @@ public sealed class ReadingPaginatorTests
     public void MoveCursor_StaysWithinVisiblePagePhrases()
     {
         var chapter = CreateChapter();
-        var page = ReadingPaginator.CreatePages(chapter, new ReadingLayoutOptions(18, 2))[0];
+        var page = ReadingPaginator.CreatePages(chapter, new ReadingLayoutOptions(80, 10))[0];
         var firstPhrase = ReadingPaginator.GetFirstWordIndex(page);
         var lastPhrase = page.Tokens
             .Select((token, index) => new { token, index })
-            .Last(item => !item.token.IsVerseNumber)
+            .First(item => item.token.PhraseId == 1)
             .index;
 
         var movedLeft = ReadingPaginator.MoveCursor(page, firstPhrase, -1);

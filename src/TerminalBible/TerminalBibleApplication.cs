@@ -289,10 +289,19 @@ public sealed class TerminalBibleApplication(
         }
         else
         {
-            var tokenIndex = 0;
+            var cursorPhraseId = cursorIndex >= 0 && cursorIndex < readingPage.Tokens.Count
+                ? readingPage.Tokens[cursorIndex].PhraseId
+                : -1;
+
             foreach (var line in readingPage.Lines)
             {
-                var renderedTokens = line.Select(token => RenderToken(token, tokenIndex++ == cursorIndex));
+                if (line.Count == 0)
+                {
+                    AnsiConsole.WriteLine();
+                    continue;
+                }
+
+                var renderedTokens = line.Select(token => RenderToken(token, token.PhraseId == cursorPhraseId));
                 AnsiConsole.MarkupLine(string.Join(' ', renderedTokens));
             }
         }
@@ -313,7 +322,7 @@ public sealed class TerminalBibleApplication(
         var text = Markup.Escape(token.Text);
         if (token.IsVerseNumber)
         {
-            return $"[dim]{text}[/]";
+            return $"[grey]{text}[/]";
         }
 
         return isCursor ? $"[black on yellow]{text}[/]" : text;
@@ -352,11 +361,12 @@ public sealed class TerminalBibleApplication(
             return currentIndex;
         }
 
-        var wordColumn = CountWordsBeforeIndex(page.Lines[currentLineIndex], tokenOffset);
+        var phraseColumn = CountPhrasesBeforeIndex(page.Lines[currentLineIndex], tokenOffset);
         var targetLineStart = GetLineStart(page, targetLineIndex);
         var targetLine = page.Lines[targetLineIndex];
-        var seenWords = 0;
-        var lastWordIndex = -1;
+        var seenPhrases = 0;
+        var lastPhraseIndex = -1;
+        var lastPhraseId = -1;
 
         for (var index = 0; index < targetLine.Count; index++)
         {
@@ -365,16 +375,22 @@ public sealed class TerminalBibleApplication(
                 continue;
             }
 
-            lastWordIndex = targetLineStart + index;
-            if (seenWords == wordColumn)
+            if (targetLine[index].PhraseId == lastPhraseId)
             {
-                return lastWordIndex;
+                continue;
             }
 
-            seenWords++;
+            lastPhraseId = targetLine[index].PhraseId;
+            lastPhraseIndex = targetLineStart + index;
+            if (seenPhrases == phraseColumn)
+            {
+                return lastPhraseIndex;
+            }
+
+            seenPhrases++;
         }
 
-        return lastWordIndex >= 0 ? lastWordIndex : currentIndex;
+        return lastPhraseIndex >= 0 ? lastPhraseIndex : currentIndex;
     }
 
     private static bool TryGetLinePosition(ReadingPage page, int tokenIndex, out int lineIndex, out int tokenOffset)
@@ -407,13 +423,15 @@ public sealed class TerminalBibleApplication(
         return lineStart;
     }
 
-    private static int CountWordsBeforeIndex(IReadOnlyList<ReadingToken> line, int tokenOffset)
+    private static int CountPhrasesBeforeIndex(IReadOnlyList<ReadingToken> line, int tokenOffset)
     {
         var count = 0;
+        var lastPhraseId = -1;
         for (var index = 0; index < tokenOffset; index++)
         {
-            if (!line[index].IsVerseNumber)
+            if (!line[index].IsVerseNumber && line[index].PhraseId != lastPhraseId)
             {
+                lastPhraseId = line[index].PhraseId;
                 count++;
             }
         }
@@ -423,12 +441,30 @@ public sealed class TerminalBibleApplication(
 
     private static string BuildShortcutBar()
     {
-        return $"[dim]{Markup.Escape("< > páginas  [ ] capítulos  setas frase  b botões  l livro  q sair")}[/]";
+        return $"{KeyMarkup("<")}/{KeyMarkup(">")} [grey]páginas[/]  "
+            + $"{KeyMarkup("[")}/{KeyMarkup("]")} [grey]capítulos[/]  "
+            + $"{KeyMarkup("←")}/{KeyMarkup("→")} [grey]frase[/]  "
+            + $"{KeyMarkup("↑")}/{KeyMarkup("↓")} [grey]linha[/]  "
+            + $"{KeyMarkup("b")} [grey]botões[/]  "
+            + $"{KeyMarkup("l")} [grey]livro[/]  "
+            + $"{KeyMarkup("q")} [grey]sair[/]";
     }
 
     private static string BuildButtonBar()
     {
-        return $"[dim]{Markup.Escape("[< Página] [Página >] [[ Capítulo] [Capítulo ]] [b Atalho] [l Livro] [q Sair]")}[/]";
+        return $"{ButtonMarkup("< Página")} {ButtonMarkup("Página >")} "
+            + $"{ButtonMarkup("[ Capítulo")} {ButtonMarkup("Capítulo ]")} "
+            + $"{ButtonMarkup("b Atalho")} {ButtonMarkup("l Livro")} {ButtonMarkup("q Sair")}";
+    }
+
+    private static string KeyMarkup(string key)
+    {
+        return $"[black on yellow] {Markup.Escape(key)} [/]";
+    }
+
+    private static string ButtonMarkup(string label)
+    {
+        return $"[black on yellow]{Markup.Escape($"[{label}]")}[/]";
     }
 
     private async Task ShowAboutAsync(CancellationToken cancellationToken)

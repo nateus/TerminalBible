@@ -13,7 +13,7 @@ public static partial class ReadingPaginator
     {
         var width = Math.Clamp(options.Width, MinimumWidth, MaximumComfortableWidth);
         var height = Math.Max(MinimumHeight, options.Height);
-        var paragraphs = BuildParagraphs(chapter, width);
+        var paragraphs = BuildParagraphs(chapter);
         var lines = WrapParagraphs(paragraphs, width);
         var pages = new List<ReadingPage>();
 
@@ -46,6 +46,7 @@ public static partial class ReadingPaginator
         }
 
         var index = Math.Clamp(currentIndex, 0, page.Tokens.Count - 1);
+        var currentPhraseId = page.Tokens[index].PhraseId;
         var lastSelectable = IsSelectable(page.Tokens[index]) ? index : GetFirstWordIndex(page);
         while (true)
         {
@@ -56,7 +57,7 @@ public static partial class ReadingPaginator
             }
 
             index = next;
-            if (IsSelectable(page.Tokens[index]))
+            if (IsSelectable(page.Tokens[index]) && page.Tokens[index].PhraseId != currentPhraseId)
             {
                 lastSelectable = index;
                 return index;
@@ -64,10 +65,11 @@ public static partial class ReadingPaginator
         }
     }
 
-    private static IReadOnlyList<IReadOnlyList<ReadingToken>> BuildParagraphs(BibleChapter chapter, int width)
+    private static IReadOnlyList<IReadOnlyList<ReadingToken>> BuildParagraphs(BibleChapter chapter)
     {
         var paragraphs = new List<IReadOnlyList<ReadingToken>>();
         var currentParagraph = new List<ReadingToken>();
+        var phraseId = 0;
 
         foreach (var verse in chapter.Verses)
         {
@@ -77,14 +79,16 @@ public static partial class ReadingPaginator
                 currentParagraph = [];
             }
 
-            currentParagraph.Add(new ReadingToken(verse.Number, verse.Number.ToString(), IsVerseNumber: true));
+            currentParagraph.Add(new ReadingToken(verse.Number, verse.Number.ToString(), IsVerseNumber: true, PhraseId: -1));
 
             foreach (var phrase in SplitIntoPhrases(verse.Text))
             {
-                foreach (var chunk in SplitLongPhrase(phrase, width))
+                foreach (var word in phrase.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries))
                 {
-                    currentParagraph.Add(new ReadingToken(verse.Number, chunk, IsVerseNumber: false));
+                    currentParagraph.Add(new ReadingToken(verse.Number, word, IsVerseNumber: false, phraseId));
                 }
+
+                phraseId++;
             }
         }
 
@@ -155,32 +159,6 @@ public static partial class ReadingPaginator
             {
                 yield return normalized;
             }
-        }
-    }
-
-    private static IEnumerable<string> SplitLongPhrase(string phrase, int width)
-    {
-        var words = phrase.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
-        var current = new List<string>();
-        var currentWidth = 0;
-
-        foreach (var word in words)
-        {
-            var projectedWidth = current.Count == 0 ? word.Length : currentWidth + 1 + word.Length;
-            if (current.Count > 0 && projectedWidth > width)
-            {
-                yield return string.Join(' ', current);
-                current = [];
-                currentWidth = 0;
-            }
-
-            current.Add(word);
-            currentWidth = current.Count == 1 ? word.Length : currentWidth + 1 + word.Length;
-        }
-
-        if (current.Count > 0)
-        {
-            yield return string.Join(' ', current);
         }
     }
 
