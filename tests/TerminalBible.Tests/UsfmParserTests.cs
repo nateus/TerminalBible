@@ -42,4 +42,40 @@ public sealed class UsfmParserTests
 
         Assert.Equal(["GEN", "MAT"], books.Select(book => book.Code).ToArray());
     }
+
+    [Fact]
+    public void ParseBook_PreservesUsfmParagraphStarts()
+    {
+        var content = """
+            \id MRK
+            \c 1
+            \p
+            \v 1 Principio do evangelho de Jesus Cristo.
+            \v 2 Conforme esta escrito no profeta Isaias.
+            \m
+            \v 3 Voz do que clama no deserto.
+            """;
+
+        var book = new UsfmParser().ParseBook(new UsfmDocument("MRK.usfm", content));
+        var verses = book.Chapters[0].Verses;
+
+        Assert.True(verses[0].StartsParagraph);
+        Assert.False(verses[1].StartsParagraph);
+        Assert.True(verses[2].StartsParagraph);
+    }
+
+    [Fact]
+    public void ParseBook_RemovesFootnotesAndCrossReferencesFromVerseText()
+    {
+        var content = """
+            \id MAT
+            \c 1
+            \p
+            \v 21 Ela dará à luz um filho\f + \fr 1:21 \ft Nota explicativa.\f* e tu chamarás seu nome Jesus. \rq Isaías 7:14 \rq*
+            """;
+
+        var book = new UsfmParser().ParseBook(new UsfmDocument("MAT.usfm", content));
+
+        Assert.Equal("Ela dará à luz um filho e tu chamarás seu nome Jesus.", book.Chapters[0].Verses[0].Text);
+    }
 }

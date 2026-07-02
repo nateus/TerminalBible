@@ -1,6 +1,6 @@
 # Terminal Bible
 
-Leitor bíblico leve para terminal, escrito em C#/.NET. A primeira versão baixa a Bíblia Portuguesa Mundial do eBible, importa arquivos USFM e mantém uma cópia JSON local para leitura offline.
+Leitor bíblico leve para terminal, escrito em C#/.NET. A versão atual baixa a Bíblia Livre do eBible, importa arquivos USFM e mantém uma cópia JSON local para leitura offline.
 
 ## Requisitos
 
@@ -13,7 +13,7 @@ Leitor bíblico leve para terminal, escrito em C#/.NET. A primeira versão baixa
 dotnet run --project src/TerminalBible
 ```
 
-No primeiro uso, escolha baixar a Bíblia Portuguesa Mundial. Depois disso, a leitura funciona offline.
+No primeiro uso, escolha baixar a Bíblia Livre. Depois disso, a leitura funciona offline.
 
 ## Testar
 
@@ -26,7 +26,7 @@ dotnet test
 Os arquivos importados são salvos em:
 
 ```text
-%LocalAppData%\TerminalBible\bibles\porbrbsl
+%LocalAppData%\TerminalBible\bibles\porbr2018
 ```
 
 Em outros sistemas, a pasta base vem de `Environment.SpecialFolder.LocalApplicationData`.

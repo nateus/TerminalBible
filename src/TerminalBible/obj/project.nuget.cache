@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "dgSpecHash": "yWkkVo1TIZo=",
+  "success": true,
+  "projectFilePath": "C:\\Users\\Multiply\\Documents\\Terminal-Bible\\src\\TerminalBible\\TerminalBible.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\Multiply\\.nuget\\packages\\spectre.console\\0.49.1\\spectre.console.0.49.1.nupkg.sha512"
+  ],
+  "logs": []
+}

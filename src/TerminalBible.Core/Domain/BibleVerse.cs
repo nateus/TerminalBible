@@ -2,4 +2,7 @@ namespace TerminalBible.Core.Domain;
 
 public sealed record BibleVerse(
     int Number,
-    string Text);
+    string Text)
+{
+    public bool StartsParagraph { get; init; }
+}
