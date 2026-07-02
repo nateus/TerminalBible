@@ -2,6 +2,7 @@ using Spectre.Console;
 using TerminalBible.Core.Domain;
 using TerminalBible.Core.Importing;
 using TerminalBible.Core.Navigation;
+using TerminalBible.Core.Reading;
 using TerminalBible.Core.Storage;
 
 namespace TerminalBible;
@@ -14,7 +15,7 @@ public sealed class TerminalBibleApplication(
     private const string InstallOption = "Instalar/Atualizar Bíblia";
     private const string AboutOption = "Sobre";
     private const string ExitOption = "Sair";
-    private const int VersesPerPage = 18;
+    private const int ReaderChromeHeight = 4;
 
     public async Task RunAsync(CancellationToken cancellationToken = default)
     {
@@ -192,6 +193,8 @@ public sealed class TerminalBibleApplication(
     {
         var current = start;
         var page = 0;
+        var cursorIndex = -1;
+        var mode = ReaderNavigationMode.Shortcut;
 
         while (!cancellationToken.IsCancellationRequested)
         {
@@ -204,93 +207,228 @@ public sealed class TerminalBibleApplication(
                 return;
             }
 
-            var pageCount = Math.Max(1, (int)Math.Ceiling(chapter.Verses.Count / (double)VersesPerPage));
+            var pages = ReadingPaginator.CreatePages(chapter, GetReaderLayoutOptions());
+            var pageCount = pages.Count;
             page = Math.Clamp(page, 0, pageCount - 1);
 
-            ShowChapterPage(book, chapter, page, pageCount);
+            var readingPage = pages[page];
+            cursorIndex = ClampCursor(readingPage, cursorIndex);
+            ShowChapterPage(book, chapter.Number, readingPage, page, pageCount, cursorIndex, mode);
 
-            var choices = BuildReaderChoices(page, pageCount, BibleNavigator.GetPreviousChapter(books, current), BibleNavigator.GetNextChapter(books, current));
-            var option = AnsiConsole.Prompt(
-                new SelectionPrompt<string>()
-                    .Title("[bold]Navegação[/]")
-                    .AddChoices(choices));
+            var previousChapter = BibleNavigator.GetPreviousChapter(books, current);
+            var nextChapter = BibleNavigator.GetNextChapter(books, current);
+            var key = Console.ReadKey(intercept: true);
 
-            switch (option)
+            switch (key.Key)
             {
-                case "Página anterior":
-                    page--;
+                case ConsoleKey.LeftArrow:
+                    cursorIndex = ReadingPaginator.MoveCursor(readingPage, cursorIndex, -1);
                     break;
-                case "Próxima página":
-                    page++;
+                case ConsoleKey.RightArrow:
+                    cursorIndex = ReadingPaginator.MoveCursor(readingPage, cursorIndex, 1);
                     break;
-                case "Capítulo anterior":
-                    current = BibleNavigator.GetPreviousChapter(books, current)!;
-                    page = 0;
+                case ConsoleKey.UpArrow:
+                    cursorIndex = MoveCursorVertically(readingPage, cursorIndex, -1);
                     break;
-                case "Próximo capítulo":
-                    current = BibleNavigator.GetNextChapter(books, current)!;
-                    page = 0;
+                case ConsoleKey.DownArrow:
+                    cursorIndex = MoveCursorVertically(readingPage, cursorIndex, 1);
                     break;
-                case "Escolher outro livro":
+                case ConsoleKey.B:
+                    mode = mode == ReaderNavigationMode.Shortcut ? ReaderNavigationMode.Buttons : ReaderNavigationMode.Shortcut;
+                    break;
+                case ConsoleKey.L:
                     return;
-                case "Sair":
+                case ConsoleKey.Q:
                     AnsiConsole.Clear();
                     Environment.Exit(0);
                     return;
+            }
+
+            switch (key.KeyChar)
+            {
+                case '<' when page > 0:
+                    page--;
+                    cursorIndex = -1;
+                    break;
+                case '>' when page + 1 < pageCount:
+                    page++;
+                    cursorIndex = -1;
+                    break;
+                case '[' when previousChapter is not null:
+                    current = previousChapter;
+                    page = 0;
+                    cursorIndex = -1;
+                    break;
+                case ']' when nextChapter is not null:
+                    current = nextChapter;
+                    page = 0;
+                    cursorIndex = -1;
+                    break;
             }
 
             await Task.Yield();
         }
     }
 
-    private static IReadOnlyList<string> BuildReaderChoices(int page, int pageCount, ChapterReference? previousChapter, ChapterReference? nextChapter)
+    private static void ShowChapterPage(
+        BibleBook book,
+        int chapterNumber,
+        ReadingPage readingPage,
+        int page,
+        int pageCount,
+        int cursorIndex,
+        ReaderNavigationMode mode)
     {
-        var choices = new List<string>();
-        if (page > 0)
+        AnsiConsole.Clear();
+        AnsiConsole.MarkupLine($"[bold]{Markup.Escape(book.Name)} {chapterNumber}[/] [dim]Página {page + 1}/{pageCount}[/]");
+        AnsiConsole.WriteLine();
+
+        if (readingPage.Lines.Count == 0)
         {
-            choices.Add("Página anterior");
+            AnsiConsole.MarkupLine("[dim]Sem versículos nesta página.[/]");
+        }
+        else
+        {
+            var tokenIndex = 0;
+            foreach (var line in readingPage.Lines)
+            {
+                var renderedTokens = line.Select(token => RenderToken(token, tokenIndex++ == cursorIndex));
+                AnsiConsole.MarkupLine(string.Join(' ', renderedTokens));
+            }
         }
 
-        if (page + 1 < pageCount)
-        {
-            choices.Add("Próxima página");
-        }
-
-        if (previousChapter is not null)
-        {
-            choices.Add("Capítulo anterior");
-        }
-
-        if (nextChapter is not null)
-        {
-            choices.Add("Próximo capítulo");
-        }
-
-        choices.Add("Escolher outro livro");
-        choices.Add("Sair");
-        return choices;
+        AnsiConsole.WriteLine();
+        AnsiConsole.MarkupLine(mode == ReaderNavigationMode.Shortcut ? BuildShortcutBar() : BuildButtonBar());
     }
 
-    private static void ShowChapterPage(BibleBook book, BibleChapter chapter, int page, int pageCount)
+    private static ReadingLayoutOptions GetReaderLayoutOptions()
     {
-        ShowHeader();
+        var width = Math.Max(20, Console.WindowWidth - 1);
+        var height = Math.Max(1, Console.WindowHeight - ReaderChromeHeight);
+        return new ReadingLayoutOptions(width, height);
+    }
 
-        var verses = chapter.Verses
-            .Skip(page * VersesPerPage)
-            .Take(VersesPerPage)
-            .ToList();
+    private static string RenderToken(ReadingToken token, bool isCursor)
+    {
+        var text = Markup.Escape(token.Text);
+        if (token.IsVerseNumber)
+        {
+            return $"[dim]{text}[/]";
+        }
 
-        var content = string.Join(
-            Environment.NewLine + Environment.NewLine,
-            verses.Select(verse => $"[bold dim]{verse.Number}[/] {Markup.Escape(verse.Text)}"));
+        return isCursor ? $"[black on yellow]{text}[/]" : text;
+    }
 
-        var panel = new Panel(new Markup(content.Length == 0 ? "[dim]Sem versículos nesta página.[/]" : content))
-            .Header($"{Markup.Escape(book.Name)} {chapter.Number}")
-            .Border(BoxBorder.Rounded)
-            .Padding(1, 1);
+    private static int ClampCursor(ReadingPage page, int cursorIndex)
+    {
+        if (page.Tokens.Count == 0)
+        {
+            return -1;
+        }
 
-        AnsiConsole.Write(panel);
-        AnsiConsole.MarkupLine($"[dim]Página {page + 1} de {pageCount}[/]");
+        if (cursorIndex < 0 || cursorIndex >= page.Tokens.Count || page.Tokens[cursorIndex].IsVerseNumber)
+        {
+            return ReadingPaginator.GetFirstWordIndex(page);
+        }
+
+        return cursorIndex;
+    }
+
+    private static int MoveCursorVertically(ReadingPage page, int currentIndex, int direction)
+    {
+        if (currentIndex < 0)
+        {
+            return ReadingPaginator.GetFirstWordIndex(page);
+        }
+
+        if (!TryGetLinePosition(page, currentIndex, out var currentLineIndex, out var tokenOffset))
+        {
+            return ReadingPaginator.GetFirstWordIndex(page);
+        }
+
+        var targetLineIndex = currentLineIndex + direction;
+        if (targetLineIndex < 0 || targetLineIndex >= page.Lines.Count)
+        {
+            return currentIndex;
+        }
+
+        var wordColumn = CountWordsBeforeIndex(page.Lines[currentLineIndex], tokenOffset);
+        var targetLineStart = GetLineStart(page, targetLineIndex);
+        var targetLine = page.Lines[targetLineIndex];
+        var seenWords = 0;
+        var lastWordIndex = -1;
+
+        for (var index = 0; index < targetLine.Count; index++)
+        {
+            if (targetLine[index].IsVerseNumber)
+            {
+                continue;
+            }
+
+            lastWordIndex = targetLineStart + index;
+            if (seenWords == wordColumn)
+            {
+                return lastWordIndex;
+            }
+
+            seenWords++;
+        }
+
+        return lastWordIndex >= 0 ? lastWordIndex : currentIndex;
+    }
+
+    private static bool TryGetLinePosition(ReadingPage page, int tokenIndex, out int lineIndex, out int tokenOffset)
+    {
+        var lineStart = 0;
+        for (lineIndex = 0; lineIndex < page.Lines.Count; lineIndex++)
+        {
+            var lineEnd = lineStart + page.Lines[lineIndex].Count - 1;
+            if (tokenIndex >= lineStart && tokenIndex <= lineEnd)
+            {
+                tokenOffset = tokenIndex - lineStart;
+                return true;
+            }
+
+            lineStart += page.Lines[lineIndex].Count;
+        }
+
+        tokenOffset = -1;
+        return false;
+    }
+
+    private static int GetLineStart(ReadingPage page, int targetLineIndex)
+    {
+        var lineStart = 0;
+        for (var index = 0; index < targetLineIndex; index++)
+        {
+            lineStart += page.Lines[index].Count;
+        }
+
+        return lineStart;
+    }
+
+    private static int CountWordsBeforeIndex(IReadOnlyList<ReadingToken> line, int tokenOffset)
+    {
+        var count = 0;
+        for (var index = 0; index < tokenOffset; index++)
+        {
+            if (!line[index].IsVerseNumber)
+            {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    private static string BuildShortcutBar()
+    {
+        return $"[dim]{Markup.Escape("< > páginas  [ ] capítulos  setas palavra  b botões  l livro  q sair")}[/]";
+    }
+
+    private static string BuildButtonBar()
+    {
+        return $"[dim]{Markup.Escape("[< Página] [Página >] [[ Capítulo] [Capítulo ]] [b Atalho] [l Livro] [q Sair]")}[/]";
     }
 
     private async Task ShowAboutAsync(CancellationToken cancellationToken)
@@ -335,6 +473,12 @@ public sealed class TerminalBibleApplication(
     {
         AnsiConsole.MarkupLine("[dim]Pressione qualquer tecla para continuar...[/]");
         Console.ReadKey(intercept: true);
+    }
+
+    private enum ReaderNavigationMode
+    {
+        Shortcut,
+        Buttons
     }
 
     private sealed record ChapterChoice(BibleChapter? Chapter, string Label);
