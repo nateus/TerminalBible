@@ -73,7 +73,7 @@ public static partial class ReadingPaginator
 
         foreach (var verse in chapter.Verses)
         {
-            if (verse.StartsParagraph && currentParagraph.Count > 0)
+            if ((verse.StartsParagraph || ShouldInferParagraphStart(verse, currentParagraph)) && currentParagraph.Count > 0)
             {
                 paragraphs.Add(currentParagraph);
                 currentParagraph = [];
@@ -165,6 +165,23 @@ public static partial class ReadingPaginator
     private static bool IsSelectable(ReadingToken token)
     {
         return !token.IsVerseNumber;
+    }
+
+    private static bool ShouldInferParagraphStart(BibleVerse verse, IReadOnlyList<ReadingToken> currentParagraph)
+    {
+        if (currentParagraph.Count < 8)
+        {
+            return false;
+        }
+
+        var text = verse.Text.TrimStart();
+        return text.StartsWith("E disse Deus", StringComparison.OrdinalIgnoreCase)
+            || text.StartsWith("Disse Deus", StringComparison.OrdinalIgnoreCase)
+            || text.StartsWith("Então disse", StringComparison.OrdinalIgnoreCase)
+            || text.StartsWith("Entao disse", StringComparison.OrdinalIgnoreCase)
+            || text.StartsWith("E falou", StringComparison.OrdinalIgnoreCase)
+            || text.StartsWith("Então falou", StringComparison.OrdinalIgnoreCase)
+            || text.StartsWith("Entao falou", StringComparison.OrdinalIgnoreCase);
     }
 
     [GeneratedRegex(@"[^.!?;:]+[.!?;:]?", RegexOptions.CultureInvariant)]

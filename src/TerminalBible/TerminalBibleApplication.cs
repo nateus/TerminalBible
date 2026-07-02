@@ -22,7 +22,7 @@ public sealed class TerminalBibleApplication(
         AnsiConsole.Clear();
         ShowHeader();
 
-        if (!storage.IsInstalled(BibleSource.PortugueseWorldBible.Id))
+        if (!storage.IsInstalled(BibleSource.PortugueseBible.Id))
         {
             await OfferFirstInstallAsync(cancellationToken);
         }
@@ -56,7 +56,7 @@ public sealed class TerminalBibleApplication(
     private async Task OfferFirstInstallAsync(CancellationToken cancellationToken)
     {
         AnsiConsole.MarkupLine("[yellow]Nenhuma Bíblia offline foi encontrada.[/]");
-        var shouldInstall = AnsiConsole.Confirm("Deseja baixar a Bíblia Portuguesa Mundial agora?");
+        var shouldInstall = AnsiConsole.Confirm("Deseja baixar a Bíblia Livre agora?");
         if (shouldInstall)
         {
             await InstallBibleAsync(cancellationToken);
@@ -76,7 +76,7 @@ public sealed class TerminalBibleApplication(
             var translation = await AnsiConsole.Status()
                 .Spinner(Spinner.Known.Dots)
                 .SpinnerStyle(Style.Parse("green"))
-                .StartAsync("Baixando e preparando a Bíblia para uso offline...", _ => installer.InstallAsync(BibleSource.PortugueseWorldBible, cancellationToken));
+                .StartAsync("Baixando e preparando a Bíblia para uso offline...", _ => installer.InstallAsync(BibleSource.PortugueseBible, cancellationToken));
 
             AnsiConsole.MarkupLine($"[green]Instalação concluída:[/] {Markup.Escape(translation.Name)}");
         }
@@ -116,7 +116,7 @@ public sealed class TerminalBibleApplication(
 
     private async Task ReadBibleAsync(CancellationToken cancellationToken)
     {
-        if (!storage.IsInstalled(BibleSource.PortugueseWorldBible.Id))
+        if (!storage.IsInstalled(BibleSource.PortugueseBible.Id))
         {
             AnsiConsole.MarkupLine("[yellow]A Bíblia ainda não foi instalada para leitura offline.[/]");
             Pause();
@@ -126,7 +126,7 @@ public sealed class TerminalBibleApplication(
         IReadOnlyList<BibleBook> books;
         try
         {
-            books = await storage.LoadBooksAsync(BibleSource.PortugueseWorldBible.Id, cancellationToken);
+            books = await storage.LoadBooksAsync(BibleSource.PortugueseBible.Id, cancellationToken);
         }
         catch (Exception ex) when (ex is IOException or System.Text.Json.JsonException)
         {
@@ -470,7 +470,7 @@ public sealed class TerminalBibleApplication(
     private async Task ShowAboutAsync(CancellationToken cancellationToken)
     {
         ShowHeader();
-        var translation = await storage.LoadTranslationAsync(BibleSource.PortugueseWorldBible.Id, cancellationToken);
+        var translation = await storage.LoadTranslationAsync(BibleSource.PortugueseBible.Id, cancellationToken);
         var installedText = translation is null
             ? "Ainda não instalada"
             : $"Instalada em {translation.ImportedAt.ToLocalTime():dd/MM/yyyy HH:mm}";
@@ -479,11 +479,11 @@ public sealed class TerminalBibleApplication(
         grid.AddColumn();
         grid.AddColumn();
         grid.AddRow("[bold]Aplicação[/]", "Terminal Bible");
-        grid.AddRow("[bold]Tradução[/]", BibleSource.PortugueseWorldBible.Name);
-        grid.AddRow("[bold]Fonte[/]", BibleSource.PortugueseWorldBible.Source);
-        grid.AddRow("[bold]Licença[/]", BibleSource.PortugueseWorldBible.License);
+        grid.AddRow("[bold]Tradução[/]", BibleSource.PortugueseBible.Name);
+        grid.AddRow("[bold]Fonte[/]", BibleSource.PortugueseBible.Source);
+        grid.AddRow("[bold]Licença[/]", BibleSource.PortugueseBible.License);
         grid.AddRow("[bold]Status[/]", installedText);
-        grid.AddRow("[bold]Pasta offline[/]", storage.GetTranslationPath(BibleSource.PortugueseWorldBible.Id));
+        grid.AddRow("[bold]Pasta offline[/]", storage.GetTranslationPath(BibleSource.PortugueseBible.Id));
 
         AnsiConsole.Write(new Panel(grid).Header("Sobre").Border(BoxBorder.Rounded).Padding(1, 1));
         Pause();

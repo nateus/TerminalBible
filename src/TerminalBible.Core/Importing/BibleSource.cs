@@ -8,11 +8,11 @@ public sealed record BibleSource(
     string License,
     Uri DownloadUri)
 {
-    public static BibleSource PortugueseWorldBible { get; } = new(
-        "porbrbsl",
-        "Bíblia Portuguesa Mundial",
+    public static BibleSource PortugueseBible { get; } = new(
+        "porbr2018",
+        "Bíblia Livre",
         "pt-BR",
         "eBible.org",
-        "Domínio público",
-        new Uri("https://ebible.org/Scriptures/porbrbsl_usfm.zip"));
+        "Creative Commons Atribuição 4.0",
+        new Uri("https://ebible.org/Scriptures/porbr2018_usfm.zip"));
 }

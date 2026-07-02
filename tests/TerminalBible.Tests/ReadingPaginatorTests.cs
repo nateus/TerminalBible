@@ -65,6 +65,22 @@ public sealed class ReadingPaginatorTests
     }
 
     [Fact]
+    public void CreatePages_InferParagraphsForRepeatedNarrativeSpeech()
+    {
+        var chapter = new BibleChapter("GEN", 1,
+        [
+            new BibleVerse(1, "No principio criou Deus os ceus e a terra."),
+            new BibleVerse(2, "E a terra estava sem forma e vazia."),
+            new BibleVerse(3, "E disse Deus: Haja luz; e houve luz."),
+            new BibleVerse(4, "E viu Deus que a luz era boa.")
+        ]);
+
+        var page = ReadingPaginator.CreatePages(chapter, new ReadingLayoutOptions(80, 10))[0];
+
+        Assert.Contains(page.Lines, line => line.Count == 0);
+    }
+
+    [Fact]
     public void MoveCursor_StaysWithinVisiblePagePhrases()
     {
         var chapter = CreateChapter();

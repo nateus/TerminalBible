@@ -63,4 +63,19 @@ public sealed class UsfmParserTests
         Assert.False(verses[1].StartsParagraph);
         Assert.True(verses[2].StartsParagraph);
     }
+
+    [Fact]
+    public void ParseBook_RemovesFootnotesAndCrossReferencesFromVerseText()
+    {
+        var content = """
+            \id MAT
+            \c 1
+            \p
+            \v 21 Ela dará à luz um filho\f + \fr 1:21 \ft Nota explicativa.\f* e tu chamarás seu nome Jesus. \rq Isaías 7:14 \rq*
+            """;
+
+        var book = new UsfmParser().ParseBook(new UsfmDocument("MAT.usfm", content));
+
+        Assert.Equal("Ela dará à luz um filho e tu chamarás seu nome Jesus.", book.Chapters[0].Verses[0].Text);
+    }
 }

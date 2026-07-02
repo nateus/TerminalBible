@@ -158,7 +158,9 @@ public sealed partial class UsfmParser
 
     private static string CleanText(string value)
     {
-        var withoutMarkers = UsfmMarkerRegex().Replace(value, " ");
+        var withoutNotes = UsfmNoteRegex().Replace(value, " ");
+        var withoutReferences = UsfmReferenceRegex().Replace(withoutNotes, " ");
+        var withoutMarkers = UsfmMarkerRegex().Replace(withoutReferences, " ");
         var withoutAttributes = UsfmAttributeRegex().Replace(withoutMarkers, string.Empty);
         var normalized = WhitespaceRegex().Replace(withoutAttributes, " ").Trim();
         return normalized;
@@ -166,6 +168,12 @@ public sealed partial class UsfmParser
 
     [GeneratedRegex(@"^\\v\s+(?<number>\d+)(?:[-,\w]*)?\s*(?<text>.*)$")]
     private static partial Regex VerseMarkerRegex();
+
+    [GeneratedRegex(@"\\f\b.*?\\f\*", RegexOptions.IgnoreCase)]
+    private static partial Regex UsfmNoteRegex();
+
+    [GeneratedRegex(@"\\(?:x|rq)\b.*?\\(?:x|rq)\*", RegexOptions.IgnoreCase)]
+    private static partial Regex UsfmReferenceRegex();
 
     [GeneratedRegex(@"^\\(?:p|m|po|pr|cls|pmo|pm|pmc|pmr|pi\d*|mi|nb|pc|ph\d*|b)\b\s*(?<text>.*)$", RegexOptions.IgnoreCase)]
     private static partial Regex ParagraphMarkerRegex();
