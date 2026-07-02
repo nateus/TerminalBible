@@ -303,7 +303,7 @@ public sealed class TerminalBibleApplication(
 
     private static ReadingLayoutOptions GetReaderLayoutOptions()
     {
-        var width = Math.Max(20, Console.WindowWidth - 1);
+        var width = Math.Max(20, Console.WindowWidth - 4);
         var height = Math.Max(1, Console.WindowHeight - ReaderChromeHeight);
         return new ReadingLayoutOptions(width, height);
     }
@@ -423,7 +423,7 @@ public sealed class TerminalBibleApplication(
 
     private static string BuildShortcutBar()
     {
-        return $"[dim]{Markup.Escape("< > páginas  [ ] capítulos  setas palavra  b botões  l livro  q sair")}[/]";
+        return $"[dim]{Markup.Escape("< > páginas  [ ] capítulos  setas frase  b botões  l livro  q sair")}[/]";
     }
 
     private static string BuildButtonBar()

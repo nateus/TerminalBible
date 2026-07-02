@@ -42,4 +42,25 @@ public sealed class UsfmParserTests
 
         Assert.Equal(["GEN", "MAT"], books.Select(book => book.Code).ToArray());
     }
+
+    [Fact]
+    public void ParseBook_PreservesUsfmParagraphStarts()
+    {
+        var content = """
+            \id MRK
+            \c 1
+            \p
+            \v 1 Principio do evangelho de Jesus Cristo.
+            \v 2 Conforme esta escrito no profeta Isaias.
+            \m
+            \v 3 Voz do que clama no deserto.
+            """;
+
+        var book = new UsfmParser().ParseBook(new UsfmDocument("MRK.usfm", content));
+        var verses = book.Chapters[0].Verses;
+
+        Assert.True(verses[0].StartsParagraph);
+        Assert.False(verses[1].StartsParagraph);
+        Assert.True(verses[2].StartsParagraph);
+    }
 }

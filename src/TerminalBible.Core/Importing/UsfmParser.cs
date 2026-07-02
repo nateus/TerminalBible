@@ -28,6 +28,7 @@ public sealed partial class UsfmParser
         var chapters = new List<BibleChapterBuilder>();
         BibleChapterBuilder? currentChapter = null;
         BibleVerseBuilder? currentVerse = null;
+        var nextVerseStartsParagraph = true;
 
         foreach (var rawLine in SplitLines(document.Content))
         {
@@ -63,7 +64,27 @@ public sealed partial class UsfmParser
                 currentChapter = new BibleChapterBuilder(code, chapterNumber);
                 chapters.Add(currentChapter);
                 currentVerse = null;
+                nextVerseStartsParagraph = true;
                 continue;
+            }
+
+            if (TryReadParagraphMarker(line, out var paragraphText))
+            {
+                nextVerseStartsParagraph = true;
+                if (paragraphText.StartsWith(@"\v", StringComparison.Ordinal))
+                {
+                    line = paragraphText;
+                }
+                else
+                {
+                    var cleanParagraphText = CleanText(paragraphText);
+                    if (cleanParagraphText.Length > 0 && currentVerse is not null)
+                    {
+                        currentVerse.Append(cleanParagraphText);
+                    }
+
+                    continue;
+                }
             }
 
             var verseMatch = VerseMarkerRegex().Match(line);
@@ -76,8 +97,10 @@ public sealed partial class UsfmParser
                 }
 
                 currentVerse = new BibleVerseBuilder(int.Parse(verseMatch.Groups["number"].Value));
+                currentVerse.StartsParagraph = nextVerseStartsParagraph;
                 currentVerse.Append(CleanText(verseMatch.Groups["text"].Value));
                 currentChapter.Verses.Add(currentVerse);
+                nextVerseStartsParagraph = false;
                 continue;
             }
 
@@ -120,6 +143,19 @@ public sealed partial class UsfmParser
         return false;
     }
 
+    private static bool TryReadParagraphMarker(string line, out string value)
+    {
+        var match = ParagraphMarkerRegex().Match(line);
+        if (!match.Success)
+        {
+            value = string.Empty;
+            return false;
+        }
+
+        value = match.Groups["text"].Value.Trim();
+        return true;
+    }
+
     private static string CleanText(string value)
     {
         var withoutMarkers = UsfmMarkerRegex().Replace(value, " ");
@@ -130,6 +166,9 @@ public sealed partial class UsfmParser
 
     [GeneratedRegex(@"^\\v\s+(?<number>\d+)(?:[-,\w]*)?\s*(?<text>.*)$")]
     private static partial Regex VerseMarkerRegex();
+
+    [GeneratedRegex(@"^\\(?:p|m|po|pr|cls|pmo|pm|pmc|pmr|pi\d*|mi|nb|pc|ph\d*|b)\b\s*(?<text>.*)$", RegexOptions.IgnoreCase)]
+    private static partial Regex ParagraphMarkerRegex();
 
     [GeneratedRegex(@"\\[a-z0-9]+\*?(?:\s+)?", RegexOptions.IgnoreCase)]
     private static partial Regex UsfmMarkerRegex();
@@ -157,6 +196,8 @@ public sealed partial class UsfmParser
     {
         private readonly List<string> _parts = [];
 
+        public bool StartsParagraph { get; set; }
+
         public void Append(string text)
         {
             if (!string.IsNullOrWhiteSpace(text))
@@ -167,7 +208,10 @@ public sealed partial class UsfmParser
 
         public BibleVerse ToVerse()
         {
-            return new BibleVerse(number, string.Join(' ', _parts));
+            return new BibleVerse(number, string.Join(' ', _parts))
+            {
+                StartsParagraph = StartsParagraph
+            };
         }
     }
 }
